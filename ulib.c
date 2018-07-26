@@ -96,10 +96,21 @@ void*
 memmove(void *vdst, void *vsrc, int n)
 {
   char *dst, *src;
-
+  
   dst = vdst;
   src = vsrc;
   while(n-- > 0)
     *dst++ = *src++;
   return vdst;
+}
+
+// Return index of c in s. Search from back.
+int
+strfindfromback(char *s, const char c)
+{
+  int n = strlen(s) - 1;
+
+  while (s[n] != c) n--;
+
+  return n;
 }

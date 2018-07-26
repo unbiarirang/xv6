@@ -1,17 +1,34 @@
+// Segments in proc->gdt.
+#define NSEGS     7
+
 // Per-CPU state
 struct cpu {
-  uchar apicid;                // Local APIC ID
+  uchar id;                    // Local APIC ID; index into cpus[] below
   struct context *scheduler;   // swtch() here to enter scheduler
   struct taskstate ts;         // Used by x86 to find stack for interrupt
   struct segdesc gdt[NSEGS];   // x86 global descriptor table
   volatile uint started;       // Has the CPU started?
   int ncli;                    // Depth of pushcli nesting.
   int intena;                  // Were interrupts enabled before pushcli?
-  struct proc *proc;           // The process running on this cpu or null
+  
+  // Cpu-local storage variables; see below
+  struct cpu *cpu;
+  struct proc *proc;           // The currently-running process.
 };
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
+
+// Per-CPU variables, holding pointers to the
+// current cpu and to the current process.
+// The asm suffix tells gcc to use "%gs:0" to refer to cpu
+// and "%gs:4" to refer to proc.  seginit sets up the
+// %gs segment register so that %gs refers to the memory
+// holding those two variables in the local cpu's struct cpu.
+// This is similar to how thread-local variables are implemented
+// in thread libraries such as Linux pthreads.
+extern struct cpu *cpu asm("%gs:0");       // &cpus[cpunum()]
+extern struct proc *proc asm("%gs:4");     // cpus[cpunum()].proc
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
@@ -49,7 +66,33 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // signals framework
+  uint signal;                 // A currently pending signal
+  sighandler_t sighandlers[32];  // Every entry is a pointer to a function
+                               // (accepting no arguments and returning no value)
+  // scheduling
+  int priority;                // Process Priority(0-20). Lower value, higher priority
+  uint in_time;                // Time that the process entered the ready queue (RUNNABLE state)
+  int tick;                    // Count the process used how many CPU time (interrupt timer time)
+                               // For the purpose of FIFO and MLQ scheduling 
+  int mlq_level;               // MLQ queue level
 };
+
+// signals framework
+void register_handler(sighandler_t handler);
+void sigint();
+void sigkillchild();
+void sigchildexit();
+
+void* memcpy(void *dst, const void *src, uint n);
+
+// scheduling
+#define SCHED_RR        1
+#define SCHED_FIFO      2
+#define SCHED_PRIORITY  3
+#define SCHED_MLQ       4
+int SCHED_TYPE;
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

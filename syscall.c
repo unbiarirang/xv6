@@ -17,9 +17,7 @@
 int
 fetchint(uint addr, int *ip)
 {
-  struct proc *curproc = myproc();
-
-  if(addr >= curproc->sz || addr+4 > curproc->sz)
+  if(addr >= proc->sz || addr+4 > proc->sz)
     return -1;
   *ip = *(int*)(addr);
   return 0;
@@ -32,16 +30,14 @@ int
 fetchstr(uint addr, char **pp)
 {
   char *s, *ep;
-  struct proc *curproc = myproc();
 
-  if(addr >= curproc->sz)
+  if(addr >= proc->sz)
     return -1;
   *pp = (char*)addr;
-  ep = (char*)curproc->sz;
-  for(s = *pp; s < ep; s++){
+  ep = (char*)proc->sz;
+  for(s = *pp; s < ep; s++)
     if(*s == 0)
       return s - *pp;
-  }
   return -1;
 }
 
@@ -49,21 +45,20 @@ fetchstr(uint addr, char **pp)
 int
 argint(int n, int *ip)
 {
-  return fetchint((myproc()->tf->esp) + 4 + 4*n, ip);
+  return fetchint(proc->tf->esp + 4 + 4*n, ip);
 }
 
 // Fetch the nth word-sized system call argument as a pointer
-// to a block of memory of size bytes.  Check that the pointer
+// to a block of memory of size n bytes.  Check that the pointer
 // lies within the process address space.
 int
 argptr(int n, char **pp, int size)
 {
   int i;
-  struct proc *curproc = myproc();
- 
+
   if(argint(n, &i) < 0)
     return -1;
-  if(size < 0 || (uint)i >= curproc->sz || (uint)i+size > curproc->sz)
+  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
     return -1;
   *pp = (char*)i;
   return 0;
@@ -103,6 +98,17 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+<<<<<<< HEAD
+extern int sys_loadimg(void);
+extern int sys_createwindow(void);
+// extern int sys_deletewindow(void);
+=======
+>>>>>>> 47aa0ca669b5258a612c78e3005145ad951b7654
+extern int sys_signal(void);
+extern int sys_sigsend(void);
+extern int sys_cps(void);
+extern int sys_chpr(void);
+
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -126,20 +132,35 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+<<<<<<< HEAD
+[SYS_loadimg] sys_loadimg,
+[SYS_createwindow] sys_createwindow,
+// [SYS_deletewindow] sys_deletewindow,
+=======
+>>>>>>> 47aa0ca669b5258a612c78e3005145ad951b7654
+[SYS_signal]  sys_signal,
+[SYS_sigsend] sys_sigsend,
+[SYS_cps]     sys_cps,
+[SYS_chpr]    sys_chpr
 };
 
 void
 syscall(void)
 {
   int num;
-  struct proc *curproc = myproc();
 
+<<<<<<< HEAD
+  num = proc->tf->eax;
+  proc->priority = 3; // system call default pirority
+=======
   num = curproc->tf->eax;
+  curproc->priority = 3; // system call default pirority
+>>>>>>> 47aa0ca669b5258a612c78e3005145ad951b7654
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    curproc->tf->eax = syscalls[num]();
+    proc->tf->eax = syscalls[num]();
   } else {
     cprintf("%d %s: unknown sys call %d\n",
-            curproc->pid, curproc->name, num);
-    curproc->tf->eax = -1;
+            proc->pid, proc->name, num);
+    proc->tf->eax = -1;
   }
 }

@@ -29,3 +29,17 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
+<<<<<<< HEAD
+SYSCALL(loadimg)
+SYSCALL(createwindow)
+SYSCALL(deletewindow)
+SYSCALL(signal)
+SYSCALL(sigsend)
+SYSCALL(cps)
+SYSCALL(chpr)
+=======
+SYSCALL(signal)
+SYSCALL(sigsend)
+SYSCALL(cps)
+SYSCALL(chpr)
+>>>>>>> 47aa0ca669b5258a612c78e3005145ad951b7654

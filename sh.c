@@ -13,6 +13,7 @@
 
 #define MAXARGS 10
 
+
 struct cmd {
   int type;
 };
@@ -66,7 +67,7 @@ runcmd(struct cmd *cmd)
 
   if(cmd == 0)
     exit();
-
+  
   switch(cmd->type){
   default:
     panic("runcmd");
@@ -120,7 +121,7 @@ runcmd(struct cmd *cmd)
     wait();
     wait();
     break;
-
+    
   case BACK:
     bcmd = (struct backcmd*)cmd;
     if(fork1() == 0)
@@ -131,9 +132,9 @@ runcmd(struct cmd *cmd)
 }
 
 int
-getcmd(char *buf, int nbuf)
+getcmd(char *buf, int nbuf, char *cur_dir)
 {
-  printf(2, "$ ");
+  printf(2, "%s> ", cur_dir);
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
   if(buf[0] == 0) // EOF
@@ -146,8 +147,14 @@ main(void)
 {
   static char buf[100];
   int fd;
+  char cur_dir[100];
+<<<<<<< HEAD
 
-  // Ensure that three file descriptors are open.
+  int h, w;
+=======
+>>>>>>> 47aa0ca669b5258a612c78e3005145ad951b7654
+
+  // Assumes three file descriptors open.
   while((fd = open("console", O_RDWR)) >= 0){
     if(fd >= 3){
       close(fd);
@@ -155,15 +162,30 @@ main(void)
     }
   }
 
+//  while(1) ;
+
   // Read and run input commands.
-  while(getcmd(buf, sizeof(buf)) >= 0){
+  while(getcmd(buf, sizeof(buf), cur_dir) >= 0){
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
-      // Chdir must be called by the parent, not the child.
+      // Clumsy but will have to do for now.
+      // Chdir has no effect on the parent if run in the child.
       buf[strlen(buf)-1] = 0;  // chop \n
       if(chdir(buf+3) < 0)
         printf(2, "cannot cd %s\n", buf+3);
+      // Represent current working directory
+      else if ((buf[3] == '.' && buf[4] == '.' && buf[5] == '/')){  // "cd ../"
+        int del_index = strfindfromback(cur_dir, '/');
+        if (del_index >= 0)
+          memset(cur_dir + del_index, 0, strlen(cur_dir) - del_index);
+      }
+      else if (buf[3] != '.'){
+        cur_dir[strlen(cur_dir)] = '/';
+        strcpy(cur_dir + strlen(cur_dir), buf + 3);
+      }
+
       continue;
     }
+
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait();
@@ -182,7 +204,7 @@ int
 fork1(void)
 {
   int pid;
-
+  
   pid = fork();
   if(pid == -1)
     panic("fork");
@@ -267,7 +289,7 @@ gettoken(char **ps, char *es, char **q, char **eq)
 {
   char *s;
   int ret;
-
+  
   s = *ps;
   while(s < es && strchr(whitespace, *s))
     s++;
@@ -300,7 +322,7 @@ gettoken(char **ps, char *es, char **q, char **eq)
   }
   if(eq)
     *eq = s;
-
+  
   while(s < es && strchr(whitespace, *s))
     s++;
   *ps = s;
@@ -311,7 +333,7 @@ int
 peek(char **ps, char *es, char *toks)
 {
   char *s;
-
+  
   s = *ps;
   while(s < es && strchr(whitespace, *s))
     s++;
@@ -419,7 +441,7 @@ parseexec(char **ps, char *es)
   int tok, argc;
   struct execcmd *cmd;
   struct cmd *ret;
-
+  
   if(peek(ps, es, "("))
     return parseblock(ps, es);
 
@@ -458,7 +480,7 @@ nulterminate(struct cmd *cmd)
 
   if(cmd == 0)
     return 0;
-
+  
   switch(cmd->type){
   case EXEC:
     ecmd = (struct execcmd*)cmd;
@@ -477,7 +499,7 @@ nulterminate(struct cmd *cmd)
     nulterminate(pcmd->left);
     nulterminate(pcmd->right);
     break;
-
+    
   case LIST:
     lcmd = (struct listcmd*)cmd;
     nulterminate(lcmd->left);

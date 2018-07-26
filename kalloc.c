@@ -11,7 +11,6 @@
 
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
-                   // defined by the kernel linker script in kernel.ld
 
 struct run {
   struct run *next;
@@ -21,6 +20,8 @@ struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  uint free_pages;  // number of free pages
+  uint pg_refcount[PHYSTOP >> PGSHIFT]; // reference count for each 4KB page
 } kmem;
 
 // Initialization happens in two phases.
@@ -51,6 +52,7 @@ freerange(void *vstart, void *vend)
   for(; p + PGSIZE <= (char*)vend; p += PGSIZE)
     kfree(p);
 }
+
 //PAGEBREAK: 21
 // Free the page of physical memory pointed at by v,
 // which normally should have been returned by a
@@ -61,7 +63,7 @@ kfree(char *v)
 {
   struct run *r;
 
-  if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
+  if((uint)v % PGSIZE || v < end || v2p(v) >= PHYSTOP)
     panic("kfree");
 
   // Fill with junk to catch dangling refs.
@@ -94,3 +96,43 @@ kalloc(void)
   return (char*)r;
 }
 
+uint num_free_pages(void)
+{
+  acquire(&kmem.lock);
+  uint free_pages = kmem.free_pages;
+  release(&kmem.lock);
+  return free_pages;
+}
+
+void decrease_ref_count(uint pa)
+{
+  if(pa < (uint)V2P(end) || pa >= PHYSTOP)
+    panic("decrement_ref_count");
+
+  acquire(&kmem.lock);
+  --kmem.pg_refcount[pa >> PGSHIFT];
+  release(&kmem.lock);
+}
+ 
+void increase_ref_count(uint pa)
+{
+  if(pa < (uint)V2P(end) || pa >= PHYSTOP)
+    panic("increment_ref_count");
+
+  acquire(&kmem.lock);
+  ++kmem.pg_refcount[pa >> PGSHIFT];
+  release(&kmem.lock);
+}
+
+uint get_ref_count(uint pa)
+{
+  if(pa < (uint)V2P(end) || pa >= PHYSTOP)
+    panic("get_ref_count");
+  uint count;
+
+  acquire(&kmem.lock);
+  count = kmem.pg_refcount[pa >> PGSHIFT];
+  release(&kmem.lock);
+
+  return count;
+}
